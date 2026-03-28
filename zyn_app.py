@@ -6,8 +6,24 @@ import random
 # -------------------------
 st.set_page_config(page_title="ZYN AI", layout="centered")
 
-st.title("ZYN — Governed AI Execution")
-st.caption("Measure. Control. Reconcile.")
+st.title("ZYN — Governed AI Execution Platform")
+st.caption("Pre-execution estimation • Runtime governance • Post-execution reconciliation")
+
+# -------------------------
+# Intro (NEW)
+# -------------------------
+st.markdown("""
+### What this shows
+
+This system simulates how AI compute behaves under real execution conditions.
+
+- Estimates expected effort (ZYN)
+- Executes with real-world variability (retries, branching, tools)
+- Shows how cost drifts during execution
+- Demonstrates why governance is required
+
+👉 Same request can produce different cost behavior.
+""")
 
 # -------------------------
 # Session State
@@ -24,16 +40,14 @@ if "pending_task" not in st.session_state:
 ZYN_RATE = 0.5
 
 # -------------------------
-# Sidebar Controls
+# Sidebar
 # -------------------------
 st.sidebar.title("⚙️ System Controls")
 
-mode = st.sidebar.radio("Execution Mode", ["Governed", "Ungoverned"])
-
+mode = st.sidebar.radio("System Mode", ["Governed", "Ungoverned"])
 max_retries = st.sidebar.slider("Max Retry Limit", 0, 5, 2)
 tool_weight = st.sidebar.slider("Tool Weight", 1.0, 3.0, 2.0)
 branch_prob = st.sidebar.slider("Branch Probability", 0.0, 1.0, 0.3)
-
 budget = st.sidebar.slider("Max ZYN per request", 5, 40, 20)
 
 st.sidebar.markdown("---")
@@ -43,6 +57,23 @@ st.sidebar.metric("ZYN Balance", round(st.session_state.zyn_balance, 2))
 
 if st.sidebar.button("Recharge 20 ZYN"):
     st.session_state.zyn_balance += 20
+
+# -------------------------
+# Guided Demo (NEW)
+# -------------------------
+st.sidebar.markdown("### 🧪 Try this")
+
+st.sidebar.markdown("""
+1. Run same query twice  
+2. Switch Governed ↔ Ungoverned  
+3. Increase branching  
+4. Observe drift  
+
+👉 Watch how cost behavior changes
+""")
+
+if st.sidebar.button("🔁 Compare Governed vs Ungoverned"):
+    st.sidebar.info("Run the same request in both modes to observe cost divergence.")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("ZYN = normalized AI compute effort")
@@ -54,7 +85,6 @@ def estimate(prompt):
     return round(len(prompt.split()) * 0.3 + 4, 2)
 
 def execute(estimated, prompt):
-    # Retry logic
     if mode == "Ungoverned":
         retries = random.randint(0, 5)
     else:
@@ -67,7 +97,6 @@ def execute(estimated, prompt):
 
     actual = base_work + retry_work
 
-    # Branching
     branch_triggered = False
     branch_cost = 0
 
@@ -76,7 +105,6 @@ def execute(estimated, prompt):
         branch_cost = estimated * random.uniform(0.5, 1.5)
         actual += branch_cost
 
-    # Tool amplification
     if "tool" in prompt.lower():
         actual *= tool_weight
 
@@ -220,6 +248,16 @@ Approve execution?
 
         st.session_state.messages.append({"role": "user", "content": task["prompt"]})
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+        # -------------------------
+        # NEW: Highlight Cause
+        # -------------------------
+        if branch:
+            st.error("⚠️ Branching caused non-linear cost increase")
+        elif retries > 0:
+            st.warning("⚠️ Retries increased cost")
+        elif actual > task["est"]:
+            st.info("ℹ️ Cost drift from internal execution complexity")
 
         st.session_state.pending_task = None
         st.rerun()
