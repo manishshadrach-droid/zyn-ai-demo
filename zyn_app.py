@@ -10,19 +10,19 @@ st.title("ZYN — Governed AI Execution Platform")
 st.caption("Pre-execution estimation • Runtime governance • Post-execution reconciliation")
 
 # -------------------------
-# Intro (NEW)
+# Intro
 # -------------------------
 st.markdown("""
 ### What this shows
 
-This system simulates how AI compute behaves under real execution conditions.
+This system simulates how AI execution behaves structurally:
 
-- Estimates expected effort (ZYN)
-- Executes with real-world variability (retries, branching, tools)
-- Shows how cost drifts during execution
-- Demonstrates why governance is required
+- Pre-flight estimation of execution tree
+- Runtime branching + retries
+- Cost drift vs projected envelope
+- Governance impact on cost stability
 
-👉 Same request can produce different cost behavior.
+👉 Same request → different execution trees → different cost outcomes
 """)
 
 # -------------------------
@@ -40,15 +40,20 @@ if "pending_task" not in st.session_state:
 ZYN_RATE = 0.5
 
 # -------------------------
-# Sidebar
+# Sidebar Controls
 # -------------------------
 st.sidebar.title("⚙️ System Controls")
 
 mode = st.sidebar.radio("System Mode", ["Governed", "Ungoverned"])
-max_retries = st.sidebar.slider("Max Retry Limit", 0, 5, 2)
+
+st.sidebar.markdown("### 🌿 Execution Topology")
+
+branch_factor = st.sidebar.slider("Branch Factor", 1, 3, 2)
+depth = st.sidebar.slider("Execution Depth", 1, 4, 2)
+retry_limit = st.sidebar.slider("Retry per Node", 0, 3, 1)
 tool_weight = st.sidebar.slider("Tool Weight", 1.0, 3.0, 2.0)
-branch_prob = st.sidebar.slider("Branch Probability", 0.0, 1.0, 0.3)
-budget = st.sidebar.slider("Max ZYN per request", 5, 40, 20)
+
+budget = st.sidebar.slider("Max ZYN per request", 5, 60, 25)
 
 st.sidebar.markdown("---")
 
@@ -58,99 +63,94 @@ st.sidebar.metric("ZYN Balance", round(st.session_state.zyn_balance, 2))
 if st.sidebar.button("Recharge 20 ZYN"):
     st.session_state.zyn_balance += 20
 
-# -------------------------
-# Guided Demo (NEW)
-# -------------------------
-st.sidebar.markdown("### 🧪 Try this")
-
-st.sidebar.markdown("""
-1. Run same query twice  
-2. Switch Governed ↔ Ungoverned  
-3. Increase branching  
-4. Observe drift  
-
-👉 Watch how cost behavior changes
-""")
-
-if st.sidebar.button("🔁 Compare Governed vs Ungoverned"):
-    st.sidebar.info("Run the same request in both modes to observe cost divergence.")
-
 st.sidebar.markdown("---")
 st.sidebar.caption("ZYN = normalized AI compute effort")
 
 # -------------------------
-# Core Logic
+# Tree Estimation
 # -------------------------
-def estimate(prompt):
+def estimate_tree(est, depth, branch_factor, retry_limit, tool_weight):
+    total_nodes = 0
+    level_nodes = 1
+
+    for d in range(depth + 1):
+        total_nodes += level_nodes
+        level_nodes *= branch_factor
+
+    base_cost = total_nodes * est * 0.6
+    retry_cost = total_nodes * (retry_limit * 0.5)
+    tool_cost = base_cost * (tool_weight - 1)
+
+    projected = base_cost + retry_cost + tool_cost
+    worst_case = projected * 1.5
+
+    return round(projected, 2), round(worst_case, 2), total_nodes
+
+# -------------------------
+# Tree Execution
+# -------------------------
+def execute_tree(est, depth, branch_factor, retry_limit, tool_weight, mode):
+
+    total_cost = 0
+    total_nodes = 0
+    total_retries = 0
+
+    current_level_nodes = 1
+
+    for d in range(depth + 1):
+
+        for n in range(current_level_nodes):
+
+            total_nodes += 1
+
+            # retries
+            if mode == "Ungoverned":
+                retries = random.randint(0, 5)
+            else:
+                retries = random.randint(0, retry_limit)
+
+            total_retries += retries
+
+            node_cost = est * random.uniform(0.5, 1.2)
+            node_cost += retries * 0.8
+
+            total_cost += node_cost
+
+        # branching behavior
+        if mode == "Governed":
+            current_level_nodes *= branch_factor
+        else:
+            current_level_nodes *= random.randint(1, branch_factor + 2)
+
+    total_cost *= tool_weight
+
+    return round(total_cost, 2), total_nodes, total_retries
+
+# -------------------------
+# Base Estimation
+# -------------------------
+def estimate_prompt(prompt):
     return round(len(prompt.split()) * 0.3 + 4, 2)
 
-def execute(estimated, prompt):
-    if mode == "Ungoverned":
-        retries = random.randint(0, 5)
-    else:
-        retries = random.randint(0, max_retries)
-
-    variance = random.uniform(0.8, 1.5)
-
-    base_work = estimated * variance
-    retry_work = retries
-
-    actual = base_work + retry_work
-
-    branch_triggered = False
-    branch_cost = 0
-
-    if random.random() < branch_prob:
-        branch_triggered = True
-        branch_cost = estimated * random.uniform(0.5, 1.5)
-        actual += branch_cost
-
-    if "tool" in prompt.lower():
-        actual *= tool_weight
-
-    return (
-        round(actual, 2),
-        retries,
-        branch_triggered,
-        round(branch_cost, 2),
-        round(base_work, 2),
-        round(retry_work, 2),
-    )
-
-def explain(est, act, retries, branch):
-    reasons = []
-
-    if retries > 0:
-        reasons.append("retries increased cost")
-
-    if branch:
-        reasons.append("branching added execution paths")
-
-    if act > est and not reasons:
-        reasons.append("internal reasoning complexity")
-
-    return ", ".join(reasons).capitalize()
-
+# -------------------------
+# Mock AI Response
+# -------------------------
 def generate_response(prompt):
     p = prompt.lower()
 
     if "summarize" in p:
         return "Here is a concise summary focusing on key insights."
-
     elif "email" in p:
         return "Here’s a structured professional email draft."
-
     elif "financial" in p or "analyze" in p:
         return "Analysis shows inefficiencies and optimization opportunities."
-
     elif "strategy" in p:
         return "A scalable strategy aligns execution with efficiency."
-
     else:
-        return "Request processed through layered reasoning steps."
+        return "Request processed through structured execution paths."
 
 # -------------------------
-# Chat Display
+# Chat History
 # -------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -162,9 +162,18 @@ for msg in st.session_state.messages:
 prompt = st.chat_input("Enter your request...")
 
 if prompt:
-    est = estimate(prompt)
-    low = round(est * 0.85, 2)
-    high = round(est * 1.25, 2)
+    est = estimate_prompt(prompt)
+
+    projected, worst_case, total_nodes = estimate_tree(
+        est,
+        depth,
+        branch_factor,
+        retry_limit,
+        tool_weight
+    )
+
+    low = round(projected * 0.85, 2)
+    high = round(projected * 1.15, 2)
 
     if st.session_state.zyn_balance < low:
         st.error("🚫 Execution blocked — insufficient ZYN")
@@ -176,8 +185,11 @@ if prompt:
     st.session_state.pending_task = {
         "prompt": prompt,
         "est": est,
+        "projected": projected,
         "low": low,
         "high": high,
+        "worst_case": worst_case,
+        "nodes": total_nodes
     }
 
 # -------------------------
@@ -190,55 +202,50 @@ if st.session_state.pending_task:
     st.chat_message("user").markdown(task["prompt"])
 
     st.chat_message("assistant").markdown(f"""
-🧠 **Estimated Range:** {task['low']} – {task['high']} ZYN  
-⚠️ Execution may vary (retries, branching, tools)
+🧠 **Projected Cost:** {task['low']} – {task['high']} ZYN  
+🌿 **Estimated Nodes:** {task['nodes']}  
+⚠️ Worst Case: {task['worst_case']} ZYN  
+
+This is a **pre-execution branching envelope**
 
 Approve execution?
 """)
 
     if st.button("✅ Approve Execution"):
 
-        actual, retries, branch, branch_cost, base_work, retry_work = execute(
-            task["est"], task["prompt"]
+        actual, actual_nodes, retries = execute_tree(
+            task["est"],
+            depth,
+            branch_factor,
+            retry_limit,
+            tool_weight,
+            mode
         )
 
         st.session_state.zyn_balance -= actual
 
-        reason = explain(task["est"], actual, retries, branch)
-        efficiency = round((task["est"] / actual) * 100, 2)
+        drift = round(actual - task["projected"], 2)
+        efficiency = round((task["projected"] / actual) * 100, 2)
         cost = round(actual * ZYN_RATE, 2)
-        drift = round(actual - task["est"], 2)
 
         ai_output = generate_response(task["prompt"])
-
-        # Drift indicator
-        if drift > 0:
-            drift_display = f"📈 Drift: +{drift} ZYN"
-        else:
-            drift_display = f"📉 Drift: {drift} ZYN"
 
         response = f"""
 {ai_output}
 
 ---
 
-🧠 Estimated: {task['est']} ZYN  
+🧠 Projected: {task['projected']} ZYN  
 ⚙️ Actual: {actual} ZYN  
-🔁 Retries: {retries}  
 
-🌿 Branch Cost: {branch_cost}  
+🌿 Nodes (Projected): {task['nodes']}  
+🌿 Nodes (Actual): {actual_nodes}  
 
-{drift_display}
+🔁 Total Retries: {retries}  
 
----
-
-🔧 Base Work: {base_work}  
-🔁 Retry Work: {retry_work}  
-🌿 Branch Work: {branch_cost}  
+📊 Drift: {drift} ZYN  
 
 ---
-
-🧾 Why cost changed: {reason}
 
 ⚡ Efficiency: {efficiency}%  
 💰 Cost: ₹{cost}  
@@ -249,15 +256,14 @@ Approve execution?
         st.session_state.messages.append({"role": "user", "content": task["prompt"]})
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # -------------------------
-        # NEW: Highlight Cause
-        # -------------------------
-        if branch:
-            st.error("⚠️ Branching caused non-linear cost increase")
+        # Highlight behavior
+        if mode == "Ungoverned" and actual_nodes > task["nodes"]:
+            st.error("⚠️ Uncontrolled branching expanded execution tree")
         elif retries > 0:
-            st.warning("⚠️ Retries increased cost")
-        elif actual > task["est"]:
-            st.info("ℹ️ Cost drift from internal execution complexity")
+            st.warning("⚠️ Retries contributed to cost increase")
+        elif drift > 0:
+            st.info("ℹ️ Cost drift from execution variability")
 
         st.session_state.pending_task = None
         st.rerun()
+        
