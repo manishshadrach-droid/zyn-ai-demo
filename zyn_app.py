@@ -1,5 +1,8 @@
 import streamlit as st
-import random
+
+# ✅ NEW: engine imports
+from engine.estimator import estimate_tree_cost
+from engine.executor import execute_tree
 
 # -------------------------
 # Config
@@ -67,66 +70,6 @@ st.sidebar.markdown("---")
 st.sidebar.caption("ZYN = normalized AI compute effort")
 
 # -------------------------
-# Tree Estimation
-# -------------------------
-def estimate_tree(est, depth, branch_factor, retry_limit, tool_weight):
-    total_nodes = 0
-    level_nodes = 1
-
-    for d in range(depth + 1):
-        total_nodes += level_nodes
-        level_nodes *= branch_factor
-
-    base_cost = total_nodes * est * 0.6
-    retry_cost = total_nodes * (retry_limit * 0.5)
-    tool_cost = base_cost * (tool_weight - 1)
-
-    projected = base_cost + retry_cost + tool_cost
-    worst_case = projected * 1.5
-
-    return round(projected, 2), round(worst_case, 2), total_nodes
-
-# -------------------------
-# Tree Execution
-# -------------------------
-def execute_tree(est, depth, branch_factor, retry_limit, tool_weight, mode):
-
-    total_cost = 0
-    total_nodes = 0
-    total_retries = 0
-
-    current_level_nodes = 1
-
-    for d in range(depth + 1):
-
-        for n in range(current_level_nodes):
-
-            total_nodes += 1
-
-            # retries
-            if mode == "Ungoverned":
-                retries = random.randint(0, 5)
-            else:
-                retries = random.randint(0, retry_limit)
-
-            total_retries += retries
-
-            node_cost = est * random.uniform(0.5, 1.2)
-            node_cost += retries * 0.8
-
-            total_cost += node_cost
-
-        # branching behavior
-        if mode == "Governed":
-            current_level_nodes *= branch_factor
-        else:
-            current_level_nodes *= random.randint(1, branch_factor + 2)
-
-    total_cost *= tool_weight
-
-    return round(total_cost, 2), total_nodes, total_retries
-
-# -------------------------
 # Base Estimation
 # -------------------------
 def estimate_prompt(prompt):
@@ -164,13 +107,18 @@ prompt = st.chat_input("Enter your request...")
 if prompt:
     est = estimate_prompt(prompt)
 
-    projected, worst_case, total_nodes = estimate_tree(
+    # ✅ NEW: use engine estimator
+    estimation = estimate_tree_cost(
         est,
         depth,
         branch_factor,
         retry_limit,
         tool_weight
     )
+
+    projected = estimation["projected"]
+    worst_case = estimation["worst_case"]
+    total_nodes = estimation["nodes"]
 
     low = round(projected * 0.85, 2)
     high = round(projected * 1.15, 2)
@@ -213,7 +161,8 @@ Approve execution?
 
     if st.button("✅ Approve Execution"):
 
-        actual, actual_nodes, retries = execute_tree(
+        # ✅ NEW: use engine executor
+        result = execute_tree(
             task["est"],
             depth,
             branch_factor,
@@ -221,6 +170,10 @@ Approve execution?
             tool_weight,
             mode
         )
+
+        actual = result["cost"]
+        actual_nodes = result["nodes"]
+        retries = result["retries"]
 
         st.session_state.zyn_balance -= actual
 
