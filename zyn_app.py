@@ -1,222 +1,273 @@
 import streamlit as st
+import os
+import random
+import time
 
-# ✅ NEW: engine imports
+# -------------------------
+# PAGE CONFIG
+# -------------------------
+st.set_page_config(page_title="ZYN AI", layout="wide")
+
+# -------------------------
+# FINAL POLISH CSS
+# -------------------------
+st.markdown("""
+<style>
+html, body {
+    background-color: #0E1117;
+    color: #E6EDF3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+h1 { font-size: 42px; font-weight: 600; margin-bottom: 0; }
+h4 { color: #8B949E; margin-top: 4px; }
+
+[data-testid="stChatMessage"] {
+    background-color: #161B22;
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #30363D;
+}
+
+[data-testid="stMetric"] {
+    background-color: #161B22;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid #30363D;
+}
+
+.stButton button {
+    background: linear-gradient(90deg, #00FFAA, #00D1FF);
+    color: black;
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    padding: 10px 18px;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #0D1117;
+}
+
+hr { border: 0.5px solid #30363D; }
+.block-container { padding-top: 1.5rem; }
+</style>
+""", unsafe_allow_html=True)
+
+# Graphviz
+os.environ["PATH"] += os.pathsep + r"C:\Program Files\Graphviz\bin"
+
 from engine.estimator import estimate_tree_cost
 from engine.executor import execute_tree
 
 # -------------------------
-# Config
-# -------------------------
-st.set_page_config(page_title="ZYN AI", layout="centered")
-
-st.title("ZYN — Governed AI Execution Platform")
-st.caption("Pre-execution estimation • Runtime governance • Post-execution reconciliation")
-
-# -------------------------
-# Intro
-# -------------------------
-st.markdown("""
-### What this shows
-
-This system simulates how AI execution behaves structurally:
-
-- Pre-flight estimation of execution tree
-- Runtime branching + retries
-- Cost drift vs projected envelope
-- Governance impact on cost stability
-
-👉 Same request → different execution trees → different cost outcomes
-""")
-
-# -------------------------
-# Session State
+# SESSION STATE
 # -------------------------
 if "zyn_balance" not in st.session_state:
     st.session_state.zyn_balance = 30
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
 if "pending_task" not in st.session_state:
     st.session_state.pending_task = None
-
-ZYN_RATE = 0.5
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
 
 # -------------------------
-# Sidebar Controls
+# HEADER
 # -------------------------
-st.sidebar.title("⚙️ System Controls")
+st.markdown("""
+# ZYN
+#### Controlled Execution Infrastructure for AI Systems
+""")
 
-mode = st.sidebar.radio("System Mode", ["Governed", "Ungoverned"])
+# -------------------------
+# NAVIGATION
+# -------------------------
+page = st.sidebar.radio(
+    "Navigation",
+    ["Home", "ZYN App", "Insights"],
+    index=["Home", "ZYN App", "Insights"].index(st.session_state.page)
+)
+st.session_state.page = page
 
-st.sidebar.markdown("### 🌿 Execution Topology")
-
-branch_factor = st.sidebar.slider("Branch Factor", 1, 3, 2)
-depth = st.sidebar.slider("Execution Depth", 1, 4, 2)
-retry_limit = st.sidebar.slider("Retry per Node", 0, 3, 1)
+# -------------------------
+# SIDEBAR CONTROLS
+# -------------------------
+st.sidebar.markdown("---")
+mode = st.sidebar.radio("Execution Control", ["Governed", "Ungoverned"])
+comparison_mode = st.sidebar.checkbox("Compare Execution Modes")
+branch_factor = st.sidebar.slider("Branching Factor", 1, 4, 2)
+depth = st.sidebar.slider("Execution Depth", 1, 5, 2)
+retry_limit = st.sidebar.slider("Retry Limit", 0, 3, 1)
 tool_weight = st.sidebar.slider("Tool Weight", 1.0, 3.0, 2.0)
-
-budget = st.sidebar.slider("Max ZYN per request", 5, 60, 25)
-
+budget = st.sidebar.slider("Execution Budget", 5, 60, 25)
 st.sidebar.markdown("---")
-
-st.sidebar.title("💰 Wallet")
-st.sidebar.metric("ZYN Balance", round(st.session_state.zyn_balance, 2))
-
-if st.sidebar.button("Recharge 20 ZYN"):
-    st.session_state.zyn_balance += 20
-
-st.sidebar.markdown("---")
-st.sidebar.caption("ZYN = normalized AI compute effort")
+st.sidebar.metric("Available Balance", st.session_state.zyn_balance)
 
 # -------------------------
-# Base Estimation
+# HOME
 # -------------------------
-def estimate_prompt(prompt):
-    return round(len(prompt.split()) * 0.3 + 4, 2)
+if page == "Home":
+    st.markdown("""
+## AI Execution Is the Real Bottleneck
+
+Modern AI systems fail due to uncontrolled execution.
+
+ZYN introduces structured execution control.
+""")
+    if st.button("Launch ZYN App"):
+        st.session_state.page = "ZYN App"
+        st.rerun()
+    st.stop()
 
 # -------------------------
-# Mock AI Response
+# INSIGHTS
 # -------------------------
-def generate_response(prompt):
-    p = prompt.lower()
+if page == "Insights":
+    st.markdown("""
+## Execution Complexity
 
-    if "summarize" in p:
-        return "Here is a concise summary focusing on key insights."
-    elif "email" in p:
-        return "Here’s a structured professional email draft."
-    elif "financial" in p or "analyze" in p:
-        return "Analysis shows inefficiencies and optimization opportunities."
-    elif "strategy" in p:
-        return "A scalable strategy aligns execution with efficiency."
-    else:
-        return "Request processed through structured execution paths."
+AI systems expand through branching, retries, and tool calls.
+
+ZYN constrains execution to ensure predictability.
+""")
+    st.stop()
 
 # -------------------------
-# Chat History
+# FLOW STRIP (🔥 NEW)
 # -------------------------
-for msg in st.session_state.messages:
+st.markdown("""
+**Flow:** Pre-flight → Contract → Runtime → Governance → Analysis
+""")
+
+# -------------------------
+# STATUS
+# -------------------------
+col1, col2, col3 = st.columns(3)
+col1.metric("Mode", mode)
+col2.metric("Depth", depth)
+col3.metric("Branch Factor", branch_factor)
+
+# -------------------------
+# CONTEXT
+# -------------------------
+st.markdown("""
+<div style="background:#161B22;padding:12px;border-radius:10px;border:1px solid #30363D;">
+<b>Runtime Environment</b><br>
+Execution governed by structural and cost constraints.
+</div>
+""", unsafe_allow_html=True)
+
+# -------------------------
+# CHAT HISTORY
+# -------------------------
+for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # -------------------------
-# Input
+# INPUT
 # -------------------------
-prompt = st.chat_input("Enter your request...")
+prompt = st.chat_input("Define execution task...")
 
 if prompt:
-    est = estimate_prompt(prompt)
 
-    # ✅ NEW: use engine estimator
-    estimation = estimate_tree_cost(
-        est,
-        depth,
-        branch_factor,
-        retry_limit,
-        tool_weight
-    )
+    st.session_state.chat_history.append({"role": "user", "content": prompt})
 
-    projected = estimation["projected"]
-    worst_case = estimation["worst_case"]
-    total_nodes = estimation["nodes"]
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    low = round(projected * 0.85, 2)
-    high = round(projected * 1.15, 2)
+    # -------------------------
+    # 1. PRE-FLIGHT LAYER
+    # -------------------------
+    st.markdown("### 1. Pre-flight Simulation")
 
-    if st.session_state.zyn_balance < low:
-        st.error("🚫 Execution blocked — insufficient ZYN")
-        st.stop()
+    est = len(prompt.split()) * 0.3 + 4
+    estimation = estimate_tree_cost(est, depth, branch_factor, retry_limit, tool_weight)
 
-    if high > budget:
-        st.warning("⚠️ Request exceeds allowed compute budget")
+    contract = estimation["contract"]
+
+    # -------------------------
+    # 2. CONTRACT LAYER
+    # -------------------------
+    with st.chat_message("assistant"):
+        st.markdown("### 2. Execution Contract")
+        st.markdown(f"""
+Depth: {contract['max_depth']}  
+Nodes: {contract['max_nodes']}  
+Cost Ceiling: {contract['max_cost']} ZYN  
+
+Approval required to proceed.
+""")
 
     st.session_state.pending_task = {
-        "prompt": prompt,
         "est": est,
-        "projected": projected,
-        "low": low,
-        "high": high,
-        "worst_case": worst_case,
-        "nodes": total_nodes
+        "contract": contract
     }
 
 # -------------------------
-# Approval Flow
+# EXECUTION
 # -------------------------
 if st.session_state.pending_task:
 
-    task = st.session_state.pending_task
+    if st.button("Approve & Execute"):
 
-    st.chat_message("user").markdown(task["prompt"])
+        task = st.session_state.pending_task
 
-    st.chat_message("assistant").markdown(f"""
-🧠 **Projected Cost:** {task['low']} – {task['high']} ZYN  
-🌿 **Estimated Nodes:** {task['nodes']}  
-⚠️ Worst Case: {task['worst_case']} ZYN  
+        with st.chat_message("assistant"):
+            st.markdown("### 3. Execution Runtime")
+            with st.spinner("Executing governed workflow..."):
+                time.sleep(1)
 
-This is a **pre-execution branching envelope**
-
-Approve execution?
-""")
-
-    if st.button("✅ Approve Execution"):
-
-        # ✅ NEW: use engine executor
         result = execute_tree(
-            task["est"],
-            depth,
-            branch_factor,
-            retry_limit,
-            tool_weight,
-            mode
+            task["est"], depth, branch_factor,
+            retry_limit, tool_weight, mode,
+            contract=task["contract"]
         )
 
-        actual = result["cost"]
-        actual_nodes = result["nodes"]
-        retries = result["retries"]
+        tree = result["tree"]
 
-        st.session_state.zyn_balance -= actual
+        # -------------------------
+        # 4. GOVERNANCE LAYER
+        # -------------------------
+        st.markdown("""
+### 4. Governance Enforcement
 
-        drift = round(actual - task["projected"], 2)
-        efficiency = round((task["projected"] / actual) * 100, 2)
-        cost = round(actual * ZYN_RATE, 2)
+Execution constrained by:
+- depth limits  
+- node limits  
+- cost boundaries  
+""")
 
-        ai_output = generate_response(task["prompt"])
+        # -------------------------
+        # 5. ANALYSIS LAYER
+        # -------------------------
+        st.markdown("### 5. Execution Analysis")
 
-        response = f"""
-{ai_output}
+        with st.chat_message("assistant"):
+            st.markdown(f"""
+Execution Outcome: Controlled execution completed.
 
----
+Total Cost: {result["cost"]} ZYN  
+Node Count: {result["nodes"]}  
+Retries: {result["retries"]}
+""")
 
-🧠 Projected: {task['projected']} ZYN  
-⚙️ Actual: {actual} ZYN  
+            col1, col2 = st.columns(2)
 
-🌿 Nodes (Projected): {task['nodes']}  
-🌿 Nodes (Actual): {actual_nodes}  
+            with col1:
+                st.code(tree.visualize_text())
 
-🔁 Total Retries: {retries}  
-
-📊 Drift: {drift} ZYN  
-
----
-
-⚡ Efficiency: {efficiency}%  
-💰 Cost: ₹{cost}  
-
-💼 Balance: {round(st.session_state.zyn_balance,2)} ZYN
-"""
-
-        st.session_state.messages.append({"role": "user", "content": task["prompt"]})
-        st.session_state.messages.append({"role": "assistant", "content": response})
-
-        # Highlight behavior
-        if mode == "Ungoverned" and actual_nodes > task["nodes"]:
-            st.error("⚠️ Uncontrolled branching expanded execution tree")
-        elif retries > 0:
-            st.warning("⚠️ Retries contributed to cost increase")
-        elif drift > 0:
-            st.info("ℹ️ Cost drift from execution variability")
+            with col2:
+                st.graphviz_chart(tree.visualize_graph())
 
         st.session_state.pending_task = None
-        st.rerun()
-        
+
+# -------------------------
+# FOOTER
+# -------------------------
+st.markdown("""
+---
+ZYN • Controlled Execution Infrastructure • Early Concept System
+""")
