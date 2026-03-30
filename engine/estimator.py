@@ -1,62 +1,46 @@
-import random
+from engine.execution_tree import ExecutionTree
+from engine.controller import ExecutionController
+from engine.contract import ExecutionContract
+from engine.cost_model import COST_PER_NODE
+from engine.branching import get_branching_count
+from engine.trace import ExecutionTrace
 
 
-def estimate_tree_cost(est, depth, branch_factor, retry_limit, tool_weight):
+def _validate_contract(contract: ExecutionContract):
+    if contract.max_nodes <= 0:
+        raise ValueError("max_nodes must be > 0")
+    if contract.max_branching <= 0:
+        raise ValueError("max_branching must be > 0")
+    if contract.max_cost <= 0:
+        raise ValueError("max_cost must be > 0")
 
-    # 🔥 Deterministic seed for stability
-    random.seed(42)
 
-    total_nodes = 0
-    total_cost = 0
-    total_retries = 0
+def execute_tree(contract: ExecutionContract):
 
-    current_level_nodes = 1
+    _validate_contract(contract)
 
-    # 🔥 Unified cost model (same as executor)
-    BASE_LOW = 0.5
-    BASE_HIGH = 1.2
-    RETRY_COST = 0.8
+    controller = ExecutionController(contract)
+    trace = ExecutionTrace()
 
-    for d in range(depth + 1):
+    tree = ExecutionTree(
+        controller=controller,
+        cost_per_node=COST_PER_NODE,
+        branching_fn=get_branching_count,
+        trace=trace
+    )
 
-        next_level_nodes = 0
+    tree.execute()
 
-        for _ in range(current_level_nodes):
+    within_budget = controller.total_cost <= contract.max_cost
 
-            total_nodes += 1
-
-            # deterministic retry expectation
-            retries = retry_limit // 2
-            total_retries += retries
-
-            # deterministic cost (midpoint of executor range)
-            base_cost = est * ((BASE_LOW + BASE_HIGH) / 2)
-            node_cost = base_cost + retries * RETRY_COST
-
-            total_cost += node_cost
-
-            # branching (deterministic)
-            next_level_nodes += branch_factor
-
-        current_level_nodes = next_level_nodes
-
-    # apply tool weight
-    total_cost *= tool_weight
-
-    projected = round(total_cost, 2)
-    worst_case = round(projected * 1.4, 2)
-
-    # 🔥 CONTRACT (still derived but consistent)
-    contract = {
-        "max_depth": depth,
-        "max_nodes": total_nodes,
-        "max_cost": worst_case
-    }
+    if not within_budget:
+        raise RuntimeError("CRITICAL: Budget exceeded")
 
     return {
-        "projected": projected,
-        "worst_case": worst_case,
-        "nodes": total_nodes,
-        "retries": total_retries,
-        "contract": contract
+        "total_cost": round(controller.total_cost, 4),
+        "total_nodes": controller.node_count,
+        "within_budget": within_budget,
+        "termination_reason": trace.terminated_reason,
+        "tree": tree,
+        "trace": trace
     }

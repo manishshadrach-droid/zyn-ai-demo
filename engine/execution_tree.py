@@ -1,5 +1,4 @@
 import uuid
-from graphviz import Digraph
 
 
 # -------------------------
@@ -12,9 +11,7 @@ class Node:
         self.parent = parent
         self.children = []
 
-        # execution metadata
         self.cost = 0
-        self.retries = 0
         self.node_type = node_type
 
     def add_child(self, child):
@@ -25,60 +22,94 @@ class Node:
             "id": self.id,
             "depth": self.depth,
             "type": self.node_type,
-            "cost": round(self.cost, 2),
-            "retries": self.retries,
+            "cost": round(self.cost, 4),
             "children": [child.to_dict() for child in self.children]
         }
 
 
 # -------------------------
-# Execution Tree
+# Execution Tree (Controlled)
 # -------------------------
 class ExecutionTree:
-    def __init__(self):
+    def __init__(self, controller, cost_per_node, branching_fn, trace):
         self.root = Node(depth=0, node_type="root")
         self.nodes = [self.root]
 
+        self.controller = controller
+        self.cost_per_node = cost_per_node
+        self.branching_fn = branching_fn
+        self.trace = trace
+
     # -------------------------
-    # Add Children
+    # Execute Tree
     # -------------------------
-    def add_children(self, parent, num_children, governance):
+    def execute(self):
+        self._execute_node(self.root)
 
-        children = []
+    # -------------------------
+    # Core Execution Logic
+    # -------------------------
+    def _execute_node(self, node):
 
-        for _ in range(num_children):
+        # 🛑 GLOBAL STOP CHECK
+        if self.trace.terminated_reason is not None:
+            return
 
-            # Governance check
-            if governance.max_nodes and len(self.nodes) >= governance.max_nodes:
-                break
+        # 🔴 ENFORCEMENT CHECK
+        allowed, reason = self.controller.can_execute(
+            depth=node.depth,
+            next_cost=self.cost_per_node
+        )
 
-            node_type = self._assign_node_type(parent.depth)
+        if not allowed:
+            self.trace.terminate(reason)
+            return
+
+        # ✅ Register execution
+        self.controller.register_node(self.cost_per_node)
+
+        node.cost = self.cost_per_node
+        self.trace.log(node.depth, node.cost)
+
+        # 🔴 Branching (bounded)
+        requested = self.branching_fn()
+        actual = min(requested, self.controller.max_branching)
+
+        for _ in range(actual):
+
+            # 🛑 STOP if already terminated
+            if self.trace.terminated_reason is not None:
+                return
+
+            # Depth check
+            if node.depth + 1 > self.controller.max_depth:
+                self.trace.terminate("max_depth reached")
+                return
+
+            # Node cap check
+            if self.controller.node_count >= self.controller.max_nodes:
+                self.trace.terminate("max_nodes reached")
+                return
 
             child = Node(
-                depth=parent.depth + 1,
-                parent=parent,
-                node_type=node_type
+                depth=node.depth + 1,
+                parent=node,
+                node_type=self._assign_node_type(node.depth)
             )
 
-            parent.add_child(child)
-            children.append(child)
+            node.add_child(child)
             self.nodes.append(child)
 
-        return children
+            self._execute_node(child)
 
     # -------------------------
     # Node Type Logic
     # -------------------------
     def _assign_node_type(self, depth):
-        if depth == 0:
-            return "reasoning"
-        elif depth % 2 == 0:
-            return "reasoning"
-        else:
-            return "tool"
+        return "reasoning" if depth % 2 == 0 else "tool"
 
     # -------------------------
-    # Tree Stats
+    # Stats
     # -------------------------
     def total_nodes(self):
         return len(self.nodes)
@@ -94,34 +125,10 @@ class ExecutionTree:
 
         def traverse(node, prefix=""):
             lines.append(
-                f"{prefix}- [{node.node_type}] Cost:{round(node.cost,2)} Retries:{node.retries}"
+                f"{prefix}- [{node.node_type}] Cost:{round(node.cost,4)}"
             )
             for child in node.children:
                 traverse(child, prefix + "  ")
 
         traverse(self.root)
         return "\n".join(lines)
-
-    # -------------------------
-    # GRAPH VISUALIZATION
-    # -------------------------
-    def visualize_graph(self):
-        dot = Digraph()
-
-        for node in self.nodes:
-
-            if node.node_type == "tool":
-                color = "lightblue"
-            elif node.node_type == "reasoning":
-                color = "lightgreen"
-            else:
-                color = "gray"
-
-            label = f"{node.node_type}\nCost:{round(node.cost,1)}\nR:{node.retries}"
-
-            dot.node(node.id, label, style="filled", fillcolor=color)
-
-            if node.parent:
-                dot.edge(node.parent.id, node.id)
-
-        return dot

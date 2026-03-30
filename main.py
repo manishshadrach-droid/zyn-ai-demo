@@ -1,103 +1,118 @@
-import random
-
-# -------------------------------
-# Workflow Definition
-# -------------------------------
-workflow = [
-    {"name": "parse_input", "complexity": 1, "context": 1, "tool": 0},
-    {"name": "analyze", "complexity": 2, "context": 2, "tool": 0},
-    {"name": "tool_call", "complexity": 1, "context": 1, "tool": 1},
-    {"name": "generate_output", "complexity": 1, "context": 1, "tool": 0}
-]
-
-# -------------------------------
-# Estimation Logic (Pre-execution)
-# -------------------------------
-def estimate_zyn(step):
-    base = 1
-
-    complexity_factor = {
-        1: 1.0,
-        2: 1.5,
-        3: 2.5
-    }[step["complexity"]]
-
-    context_factor = {
-        1: 1.0,
-        2: 1.5,
-        3: 2.0
-    }[step["context"]]
-
-    tool_factor = 2 if step["tool"] else 1
-
-    return base * complexity_factor * context_factor * tool_factor
+from engine.contract import get_default_contract
+from engine.executor import execute_tree
 
 
-def estimate_workflow(workflow):
-    total = sum(estimate_zyn(step) for step in workflow)
-    return total * 1.3  # buffer for variability
+# -------------------------
+# Scenario Builder
+# -------------------------
+def build_contract_scenario(scenario):
+    contract = get_default_contract()
+
+    if scenario == "depth_limited":
+        contract.max_depth = 3
+        contract.max_nodes = 100
+        contract.max_cost = 1.0
+
+    elif scenario == "cost_limited":
+        contract.max_depth = 10
+        contract.max_nodes = 200
+        contract.max_cost = 0.05
+
+    elif scenario == "node_limited":
+        contract.max_depth = 10
+        contract.max_nodes = 20
+        contract.max_cost = 1.0
+
+    return contract
 
 
-# -------------------------------
-# Execution Simulation (Real-world variability)
-# -------------------------------
-def execute_step(step):
-    base_cost = estimate_zyn(step)
+# -------------------------
+# Validation Runner
+# -------------------------
+def run_validation(runs=20, scenario="depth_limited"):
+    results = []
 
-    retries = random.choice([0, 1, 2])
-    retry_cost = retries * (base_cost * 0.5)
+    for i in range(runs):
+        contract = build_contract_scenario(scenario)
 
-    tool_failure_cost = 0
-    if step["tool"] and random.random() < 0.3:
-        tool_failure_cost = base_cost
+        result = execute_tree(contract)
 
-    total = base_cost + retry_cost + tool_failure_cost
+        results.append({
+            "run": i + 1,
+            "nodes": result["total_nodes"],
+            "cost": result["total_cost"],
+            "within_budget": result["within_budget"],
+            "termination": result["termination_reason"]
+        })
 
-    return {
-        "name": step["name"],
-        "base": round(base_cost, 2),
-        "retries": retries,
-        "retry_cost": round(retry_cost, 2),
-        "tool_failure_cost": round(tool_failure_cost, 2),
-        "total": round(total, 2)
-    }
+    return results
 
-def execute_workflow(workflow):
-    total = 0
-    step_details = []
 
-    for step in workflow:
-        result = execute_step(step)
-        step_details.append(result)
-        total += result["total"]
+# -------------------------
+# Summary Metrics
+# -------------------------
+def summarize(results, scenario):
+    total_runs = len(results)
+    within_budget_runs = sum(1 for r in results if r["within_budget"])
 
-    return total, step_details
+    max_cost = max(r["cost"] for r in results)
+    min_cost = min(r["cost"] for r in results)
+    avg_cost = sum(r["cost"] for r in results) / total_runs
 
-# -------------------------------
-# Simulation Runner
-# -------------------------------
-def run_simulation():
-    estimated = estimate_workflow(workflow)
-    actual, details = execute_workflow(workflow)
+    print(f"\n===== SCENARIO: {scenario.upper()} =====")
+    print(f"Total Runs: {total_runs}")
+    print(f"Within Budget: {within_budget_runs}/{total_runs}")
 
-    print("\n--- Simulation ---")
-    print(f"Estimated ZYN: {round(estimated, 2)}")
-    print(f"Actual ZYN: {round(actual, 2)}")
-    print(f"Variance: {round(actual - estimated, 2)}")
+    # 🔥 Hard validation check
+    if within_budget_runs != total_runs:
+        print("❌ FAILURE: Budget breach detected")
+    else:
+        print("✅ PASS: No budget breach across runs")
 
-    print("\nStep Breakdown:")
-    for step in details:
+    print(f"\nCost Stats:")
+    print(f"  Max Cost: {round(max_cost, 4)}")
+    print(f"  Min Cost: {round(min_cost, 4)}")
+    print(f"  Avg Cost: {round(avg_cost, 4)}")
+
+    print("\nTermination Reasons:")
+    reasons = {}
+    for r in results:
+        reason = r["termination"]
+        reasons[reason] = reasons.get(reason, 0) + 1
+
+    for k, v in reasons.items():
+        print(f"  {k}: {v}")
+
+
+# -------------------------
+# Detailed Output
+# -------------------------
+def print_runs(results):
+    print("\n===== RUN DETAILS =====")
+
+    for r in results:
         print(f"""
-Step: {step['name']}
-  Base: {step['base']}
-  Retries: {step['retries']} (+{step['retry_cost']})
-  Tool Failure Cost: {step['tool_failure_cost']}
-  Total: {step['total']}
+Run {r['run']}:
+  Nodes: {r['nodes']}
+  Cost: {r['cost']}
+  Within Budget: {r['within_budget']}
+  Termination: {r['termination']}
 """)
 
-# -------------------------------
-# Run Multiple Simulations
-# -------------------------------
-for i in range(5):
-    print(f"\nRun {i+1}")
-    run_simulation()
+
+# -------------------------
+# Run All Scenarios
+# -------------------------
+def run_all():
+    scenarios = ["depth_limited", "cost_limited", "node_limited"]
+
+    for scenario in scenarios:
+        results = run_validation(runs=30, scenario=scenario)
+        summarize(results, scenario)
+
+
+# -------------------------
+# Main Execution
+# -------------------------
+if __name__ == "__main__":
+    run_all()

@@ -1,10 +1,10 @@
-# ZYN — Controlled Execution Infrastructure for AI Systems
+# ZYN — Bounded Execution Infrastructure for AI Systems
 
 AI systems today do not fail at intelligence.
 
-They fail at execution.
+They fail at **execution control**.
 
-ZYN introduces a governance layer that controls how AI systems expand, behave, and consume resources — before, during, and after execution.
+ZYN introduces a system where AI execution is **bounded, enforceable, and predictable** — even under branching uncertainty.
 
 ---
 
@@ -13,180 +13,109 @@ ZYN introduces a governance layer that controls how AI systems expand, behave, a
 Modern AI systems (agents, workflows, toolchains) suffer from:
 
 - Unbounded branching
-- Unpredictable cost growth
-- Lack of pre-execution visibility
-- No runtime control over execution paths
+- Exponential cost growth
+- No enforceable runtime limits
+- Estimation-dependent control (which fails under variability)
 
 Retries are manageable.
 
 Branching is not.
 
-Once execution splits into multiple paths, cost stops being linear and starts compounding.
+Once execution expands into a tree, cost becomes non-linear — and most systems lose control.
 
 ---
 
 ## 💡 The ZYN Approach
 
-ZYN models AI execution as a **tree**, not a single call.
+ZYN models execution as a **tree of nodes**, not a single call.
 
-Each request becomes:
+But more importantly:
 
-- Nodes → reasoning or tool steps  
-- Branching → execution expansion  
-- Retries → bounded recursion  
+> ZYN does not just estimate execution — it **constrains it**.
 
-ZYN introduces structured control through five layers:
+---
+
+## 🔑 Core Principle
+
+> **Estimation informs. Contracts enforce.**
+
+Even if the estimate is wrong:
+
+👉 execution cannot exceed defined limits
 
 ---
 
 ## 🏗️ System Architecture
 
-### 1. Pre-flight Simulation
-Estimate execution before it happens.
+### 1. Execution Contract (Pre-runtime)
+Defines hard constraints:
 
-- Predict node expansion
-- Estimate cost envelope
-- Surface execution structure
+- Max depth  
+- Max nodes  
+- Max branching factor  
+- Cost ceiling  
 
----
-
-### 2. Execution Contract
-Define constraints prior to runtime.
-
-- Max depth
-- Max nodes
-- Cost ceiling
+This is not advisory — it is **enforced at runtime**.
 
 ---
 
-### 3. Runtime Execution Engine
-Execute within defined boundaries.
+### 2. Execution Controller (Enforcement Layer)
 
-- Controlled node expansion
-- Structured branching
+A centralized control system that:
 
----
+- Validates every node before execution  
+- Prevents expansion beyond limits  
+- Guarantees cost ceilings  
 
-### 4. Governance Layer
-Enforce constraints during execution.
-
-- Prevent runaway expansion
-- Stop execution when limits are hit
+No execution occurs without passing this layer.
 
 ---
 
-### 5. Post-execution Analysis
-Expose execution behavior.
+### 3. Execution Engine (Tree-Based Runtime)
 
-- Cost vs projection
-- Node count
-- Execution tree visualization
-
----
-
-## 🔬 Key Insight
-
-> Governance does not just reduce cost — it constrains execution topology.
+- Expands execution as a tree  
+- Applies probabilistic branching  
+- Operates strictly under contract constraints  
 
 ---
 
-## ⚖️ Governed vs Ungoverned Execution
+### 4. Estimator (Planning Layer)
 
-ZYN demonstrates a critical distinction:
+- Models expected execution behavior  
+- Simulates branching variability  
+- Produces expected cost and node distributions  
 
-| Governed | Ungoverned |
-|----------|-----------|
-| Bounded execution | Expanding execution |
-| Predictable cost | Volatile cost |
-| Controlled topology | Chaotic branching |
-
-This contrast highlights why **pre-execution governance is necessary**.
+👉 Does **not** control execution
 
 ---
 
-## 🧠 Core Idea
+### 5. Observability (Trace Layer)
 
-Retries can be modeled.
+Captures:
 
-Branching creates path expansion.
-
-ZYN focuses on estimating and constraining the **probable execution tree**, not just the first call.
-
----
-
-## 🚀 What This Is
-
-- A prototype for controlled AI execution
-- A conceptual layer for AI infrastructure
-- A system exploring pre-execution governance
+- Nodes executed  
+- Cost consumed  
+- Termination reason  
+- Execution path  
 
 ---
 
-## ❌ What This Is Not
+## 🔒 What ZYN Guarantees
 
-- Not a chatbot
-- Not an LLM wrapper
-- Not a prompt optimization tool
+Across multiple runs with branching variability:
 
----
-
-## 🛠️ Tech Stack
-
-- Python
-- Streamlit
-- Graphviz
-- Custom execution engine
+- Cost never exceeds the defined ceiling  
+- Execution always terminates within constraints  
+- Structural variability does not break economic bounds  
 
 ---
 
-## 📊 Current Capabilities
+## ⚙️ Example Contract
 
-- Tree-based execution modeling
-- Pre-flight cost estimation
-- Execution contracts
-- Runtime governance
-- Visualization of execution topology
-- Governed vs ungoverned comparison
-
----
-
-## 🔭 Future Direction
-
-- Probabilistic branching models
-- Formal cost envelope estimation
-- Integration with real AI toolchains
-- Production-grade execution runtime
-
----
-
-## 🎯 Why This Matters
-
-AI is moving from:
-> single responses
-
-to:
-> multi-step autonomous execution
-
-Without control, this becomes:
-
-- unpredictable
-- expensive
-- unreliable
-
-ZYN explores how to make it:
-
-> controlled, bounded, and predictable
-
----
-
-## 📌 Author
-
-Shadrach Manish
-
----
-
-## ⚠️ Note
-
-This is an early-stage concept prototype focused on execution modeling and governance — not a production system.
-
----
+```json
+{
+  "max_depth": 5,
+  "max_nodes": 100,
+  "max_branching": 3,
+  "max_cost": 0.2
+}

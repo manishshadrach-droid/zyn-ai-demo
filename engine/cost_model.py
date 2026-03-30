@@ -1,0 +1,1 @@
+COST_PER_NODE = 0.002
