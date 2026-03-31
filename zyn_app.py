@@ -97,10 +97,14 @@ for run in reversed(st.session_state.history):
     st.write(f"Termination: {sample['termination_reason']}")
 
     # -------------------------
-    # Trace Summary (safe fallback)
+    # Trace Summary ✅ FIXED
     # -------------------------
     st.write("### Trace Summary")
-    st.info("Trace summary not included in this execution")
+
+    if "trace_summary" in sample:
+        st.json(sample["trace_summary"])
+    else:
+        st.info("Trace summary not available")
 
     # -------------------------
     # Tree Visualization (SAFE)

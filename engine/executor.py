@@ -26,6 +26,9 @@ def execute_tree(contract: ExecutionContract):
         "within_budget": controller.total_cost <= contract.max_cost,
         "termination_reason": trace.terminated_reason,
 
-        # ✅ SAFE OUTPUT (no Streamlit break)
+        # ✅ NEW: lightweight observability
+        "trace_summary": trace.summary(),
+
+        # ✅ SAFE UI output
         "tree_text": tree.visualize_text()
     }
