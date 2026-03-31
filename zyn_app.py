@@ -102,4 +102,14 @@ else:
 
     # Tree Visualization
     st.write("### Execution Tree")
-    st.code(sample["tree"].visualize_text())
+    st.write("### Execution Tree")
+
+tree = sample.get("tree")
+
+if tree and hasattr(tree, "visualize_text"):
+    try:
+        st.code(tree.visualize_text())
+    except Exception:
+        st.warning("Unable to render tree visualization")
+else:
+    st.info("Tree visualization not available")
