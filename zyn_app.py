@@ -95,7 +95,10 @@ for run in reversed(st.session_state.history):
 
     # Trace Summary
     st.write("### Trace Summary")
-    st.json(sample["trace_summary"])
+    if "trace_summary" in sample:
+     st.json(sample["trace_summary"])
+else:
+    st.info("Trace summary not included in this execution")
 
     # Tree Visualization
     st.write("### Execution Tree")
