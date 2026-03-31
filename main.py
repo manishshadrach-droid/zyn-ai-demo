@@ -8,6 +8,9 @@ from engine.executor import execute_tree
 def build_contract_scenario(scenario):
     contract = get_default_contract()
 
+    # Default mode
+    contract.mode = "normal"
+
     if scenario == "depth_limited":
         contract.max_depth = 3
         contract.max_nodes = 100
@@ -23,6 +26,13 @@ def build_contract_scenario(scenario):
         contract.max_nodes = 20
         contract.max_cost = 1.0
 
+    # 🔥 FINAL STRESS SCENARIO (FIXED BALANCE)
+    elif scenario == "stress_test":
+        contract.max_depth = 5      # reduced → forces depth competition
+        contract.max_nodes = 8      # tighter → nodes trigger early
+        contract.max_cost = 0.03    # relaxed → prevents cost domination
+        contract.mode = "stress"    # high branching pressure
+
     return contract
 
 
@@ -34,7 +44,6 @@ def run_validation(runs=20, scenario="depth_limited"):
 
     for i in range(runs):
         contract = build_contract_scenario(scenario)
-
         result = execute_tree(contract)
 
         results.append({
@@ -63,7 +72,6 @@ def summarize(results, scenario):
     print(f"Total Runs: {total_runs}")
     print(f"Within Budget: {within_budget_runs}/{total_runs}")
 
-    # 🔥 Hard validation check
     if within_budget_runs != total_runs:
         print("❌ FAILURE: Budget breach detected")
     else:
@@ -74,6 +82,9 @@ def summarize(results, scenario):
     print(f"  Min Cost: {round(min_cost, 4)}")
     print(f"  Avg Cost: {round(avg_cost, 4)}")
 
+    # -------------------------
+    # Termination Analysis
+    # -------------------------
     print("\nTermination Reasons:")
     reasons = {}
     for r in results:
@@ -83,32 +94,68 @@ def summarize(results, scenario):
     for k, v in reasons.items():
         print(f"  {k}: {v}")
 
+    # -------------------------
+    # Stress Insights (UPGRADED)
+    # -------------------------
+    if scenario == "stress_test":
+        print("\n🔍 Stress Test Insight:")
+
+        # 🔥 Constraint competition check
+        if len(reasons) > 1:
+            print("  ✅ Multiple constraints triggered (competition confirmed)")
+        else:
+            print("  ❌ Constraint competition NOT observed")
+
+        # 🔥 Economic variability check
+        if max_cost != min_cost:
+            print("  ✅ Cost variability observed")
+        else:
+            print("  ❌ Cost model too flat")
+
+        # 🔥 Dominance detection
+        dominant = max(reasons, key=reasons.get)
+        print(f"  ⚠ Dominant constraint: {dominant}")
+
+        print("  → System should balance constraint activation under pressure")
+
 
 # -------------------------
-# Detailed Output
+# Determinism Check
 # -------------------------
-def print_runs(results):
-    print("\n===== RUN DETAILS =====")
+def determinism_check():
+    print("\n===== DETERMINISM CHECK =====")
 
-    for r in results:
-        print(f"""
-Run {r['run']}:
-  Nodes: {r['nodes']}
-  Cost: {r['cost']}
-  Within Budget: {r['within_budget']}
-  Termination: {r['termination']}
-""")
+    contract = build_contract_scenario("stress_test")
+
+    results = []
+    for _ in range(10):
+        result = execute_tree(contract)
+        results.append(result["termination_reason"])
+
+    print("Termination sequence:", results)
+
+    if len(set(results)) > 1:
+        print("✅ Variation observed (healthy system behavior)")
+    else:
+        print("❌ No variation — constraints not competing")
 
 
 # -------------------------
 # Run All Scenarios
 # -------------------------
 def run_all():
-    scenarios = ["depth_limited", "cost_limited", "node_limited"]
+    scenarios = [
+        "depth_limited",
+        "cost_limited",
+        "node_limited",
+        "stress_test"
+    ]
 
     for scenario in scenarios:
         results = run_validation(runs=30, scenario=scenario)
         summarize(results, scenario)
+
+    determinism_check()
 
 
 # -------------------------
