@@ -24,6 +24,8 @@ max_nodes = st.sidebar.slider("Max Nodes", 10, 200, 100)
 max_branching = st.sidebar.slider("Max Branching", 1, 5, 3)
 max_cost = st.sidebar.slider("Max Cost", 0.05, 1.0, 0.2)
 
+mode = st.sidebar.selectbox("Mode", ["normal", "stress"])
+
 runs = st.sidebar.slider("Validation Runs", 1, 50, 10)
 
 # -------------------------
@@ -34,6 +36,7 @@ contract.max_depth = max_depth
 contract.max_nodes = max_nodes
 contract.max_branching = max_branching
 contract.max_cost = max_cost
+contract.mode = mode
 
 # -------------------------
 # Input
@@ -83,7 +86,7 @@ for run in reversed(st.session_state.history):
         st.error("Violation detected")
 
     # -------------------------
-    # Show One Sample Run
+    # Sample Run
     # -------------------------
     sample = run["results"][0]
 
@@ -93,23 +96,18 @@ for run in reversed(st.session_state.history):
     st.write(f"Cost: {sample['total_cost']}")
     st.write(f"Termination: {sample['termination_reason']}")
 
-    # Trace Summary
+    # -------------------------
+    # Trace Summary (safe fallback)
+    # -------------------------
     st.write("### Trace Summary")
-    if "trace_summary" in sample:
-     st.json(sample["trace_summary"])
-else:
     st.info("Trace summary not included in this execution")
 
-    # Tree Visualization
-    st.write("### Execution Tree")
+    # -------------------------
+    # Tree Visualization (SAFE)
+    # -------------------------
     st.write("### Execution Tree")
 
-tree = sample.get("tree")
-
-if tree and hasattr(tree, "visualize_text"):
-    try:
-        st.code(tree.visualize_text())
-    except Exception:
-        st.warning("Unable to render tree visualization")
-else:
-    st.info("Tree visualization not available")
+    if "tree_text" in sample:
+        st.code(sample["tree_text"])
+    else:
+        st.info("Tree visualization not available")

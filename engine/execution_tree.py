@@ -75,3 +75,19 @@ class ExecutionTree:
             self.nodes.append(child)
 
             self._execute_node(child)
+
+    # -------------------------
+    # TEXT VISUALIZATION ✅ FIXED
+    # -------------------------
+    def visualize_text(self):
+        lines = []
+
+        def traverse(node, prefix=""):
+            lines.append(
+                f"{prefix}- [{node.node_type}] Cost:{round(node.cost,4)}"
+            )
+            for child in node.children:
+                traverse(child, prefix + "  ")
+
+        traverse(self.root)
+        return "\n".join(lines)
