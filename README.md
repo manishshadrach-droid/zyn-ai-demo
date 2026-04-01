@@ -1,121 +1,138 @@
-# ZYN — Bounded Execution Infrastructure for AI Systems
+# ZYN — Execution Control & Compute Alignment System
 
-AI systems today do not fail at intelligence.
+ZYN is a controlled execution framework that proves a critical property:
 
-They fail at **execution control**.
-
-ZYN introduces a system where AI execution is **bounded, enforceable, and predictable** — even under branching uncertainty.
+> Execution can remain within defined constraints even under real compute variability — without relying on estimation.
 
 ---
 
-## 🚨 The Problem
+## 🧠 Core Idea
 
-Modern AI systems (agents, workflows, toolchains) suffer from:
+Most AI systems:
+- estimate cost
+- lose control under branching
+- drift when variability increases
 
-- Unbounded branching
-- Exponential cost growth
-- No enforceable runtime limits
-- Estimation-dependent control (which fails under variability)
+ZYN takes a different approach:
 
-Retries are manageable.
-
-Branching is not.
-
-Once execution expands into a tree, cost becomes non-linear — and most systems lose control.
+- **Control is enforced at execution time**
+- **Compute is measured independently**
+- **The two layers remain strictly separated**
 
 ---
 
-## 💡 The ZYN Approach
+## ⚙️ System Architecture
 
-ZYN models execution as a **tree of nodes**, not a single call.
+### 1. Contract Layer (Control)
+Defines execution boundaries:
+- Max depth
+- Max nodes
+- Max cost
 
-But more importantly:
-
-> ZYN does not just estimate execution — it **constrains it**.
-
----
-
-## 🔑 Core Principle
-
-> **Estimation informs. Contracts enforce.**
-
-Even if the estimate is wrong:
-
-👉 execution cannot exceed defined limits
+👉 Enforces deterministic behavior regardless of variability
 
 ---
 
-## 🏗️ System Architecture
-
-### 1. Execution Contract (Pre-runtime)
-Defines hard constraints:
-
-- Max depth  
-- Max nodes  
-- Max branching factor  
-- Cost ceiling  
-
-This is not advisory — it is **enforced at runtime**.
+### 2. Execution Layer
+- Tree-based execution model
+- Dynamic branching under constraints
+- Constraint competition (depth, nodes, cost)
 
 ---
 
-### 2. Execution Controller (Enforcement Layer)
+### 3. Compute Layer (ZCU)
+Each execution node is instrumented with:
 
-A centralized control system that:
+- Model type
+- Token usage
+- Latency
+- Retry behavior
+- Tool usage
 
-- Validates every node before execution  
-- Prevents expansion beyond limits  
-- Guarantees cost ceilings  
+These are normalized into:
 
-No execution occurs without passing this layer.
-
----
-
-### 3. Execution Engine (Tree-Based Runtime)
-
-- Expands execution as a tree  
-- Applies probabilistic branching  
-- Operates strictly under contract constraints  
+> **ZCU (ZYN Compute Unit)**  
+A consistent unit representing actual compute work performed
 
 ---
 
-### 4. Estimator (Planning Layer)
+## 🔗 Key Principle
 
-- Models expected execution behavior  
-- Simulates branching variability  
-- Produces expected cost and node distributions  
+> **Control ≠ Compute**
 
-👉 Does **not** control execution
+- Contract governs *what is allowed*  
+- Compute explains *what actually happened*  
 
----
-
-### 5. Observability (Trace Layer)
-
-Captures:
-
-- Nodes executed  
-- Cost consumed  
-- Termination reason  
-- Execution path  
+This separation ensures:
+- Stability under variability  
+- No reliance on estimation  
+- Predictable enforcement  
 
 ---
 
-## 🔒 What ZYN Guarantees
+## 🔬 What This System Demonstrates
 
-Across multiple runs with branching variability:
+Across multiple scenarios:
 
-- Cost never exceeds the defined ceiling  
-- Execution always terminates within constraints  
-- Structural variability does not break economic bounds  
+- ✅ No budget breaches under any condition  
+- ✅ Constraint competition under pressure  
+- ✅ Compute varies realistically with execution structure  
+- ✅ Variability is bounded (not chaotic)  
+- ✅ Contract enforcement remains independent of compute  
 
 ---
 
-## ⚙️ Example Contract
+## 📊 Example Behaviors
 
-```json
-{
-  "max_depth": 5,
-  "max_nodes": 100,
-  "max_branching": 3,
-  "max_cost": 0.2
-}
+- Depth-limited execution → tight compute range  
+- Cost-limited execution → wide compute variability  
+- Node-limited execution → high compute concentration  
+- Stress conditions → competing constraints, dynamic dominance  
+
+---
+
+## 🔁 Determinism vs Variability
+
+The system is:
+
+- Deterministic in enforcement  
+- Non-deterministic in execution paths  
+
+👉 This enables realistic behavior without losing control
+
+---
+
+## 🔌 Real-World Alignment
+
+The compute model is designed to directly integrate with real-world telemetry:
+
+- API token usage  
+- Latency metrics  
+- Retry patterns  
+
+No changes are required to the contract layer.
+
+---
+
+## 🚀 Why This Matters
+
+This establishes the missing bridge:
+
+> **Control → Economics**
+
+Most systems fail when:
+- execution scales  
+- variability increases  
+- cost becomes unpredictable  
+
+ZYN demonstrates that:
+- control can hold  
+- compute can vary  
+- economics can be derived  
+
+---
+
+## ▶️ Run the System
+
+```bash
+python main.py
