@@ -20,15 +20,19 @@ def execute_tree(contract: ExecutionContract):
 
     tree.execute()
 
+    summary = tree.get_execution_summary()  # 🔴 NEW
+
     return {
         "total_cost": round(controller.total_cost, 4),
         "total_nodes": controller.node_count,
         "within_budget": controller.total_cost <= contract.max_cost,
         "termination_reason": trace.terminated_reason,
 
-        # ✅ NEW: lightweight observability
-        "trace_summary": trace.summary(),
+        # 🔴 NEW: compute-aware output
+        "zcu": summary["zcu"],
+        "execution_trace": summary["trace"],
 
-        # ✅ SAFE UI output
+        # existing
+        "trace_summary": trace.summary(),
         "tree_text": tree.visualize_text()
     }
